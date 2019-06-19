@@ -3,7 +3,7 @@
 # Importamos as classes API e Resource
 from flask_restful import Api, Resource
 from app.users.resources import SignUp
-from app.users.resources_admin import AdminUserPageList
+from app.users.resources_admin import AdminUserPageList, AdminUserResource
 
 # Criamos uma classe que extende de Resource
 class Index(Resource):
@@ -28,6 +28,7 @@ def configure_api(app):
 
   # rotas para os admins
   api.add_resource(AdminUserPageList, '/admin/users/<int:page_id>')
+  api.add_resource(AdminUserResource, '/admin/user/<string:user_id>')
 
   # inicializamos a api com as configurações do flask vinda por parâmetro
   api.init_app(app)
