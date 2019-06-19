@@ -2,11 +2,28 @@
 
 from .models import User
 from flask import request
-from .schemas import UserSchema
 from flask_restful import Resource
-from mongoengine.errors import FieldDoesNotExist
-from app.responses import resp_ok, resp_exception
+from .schemas import UserSchema, UserUpdateSchema
+from mongoengine.errors import (
+  FieldDoesNotExist,
+  NotUniqueError,
+  ValidationError
+)
+from app.responses import (
+  resp_ok,
+  resp_exception,
+  resp_data_invalid,
+  resp_already_exists
+)
+from .utils import (
+  get_user_by_id,
+  exists_email_in_users
+)
 from app.messages import (
+  MSG_NO_DATA,
+  MSG_INVALID_DATA,
+  MSG_ALREADY_EXISTS,
+  MSG_RESOURCE_UPDATED,
   MSG_RESOURCE_FETCHED,
   MSG_RESOURCE_FETCHED_PAGINATED
 )
@@ -58,17 +75,59 @@ class AdminUserPageList(Resource):
     )
 
 class AdminUserResource(Resource):
-
   def get(self, user_id):
     result = None
     schema = UserSchema()
 
-    try:
-      # Buscando usuário por id
-      user = User.objects.get(id=user_id)
+    user = get_user_by_id(user_id)
 
-    except FieldDoesNotExist as e:
-      return resp_exception('Users', description=e.__str__())
+    if not isinstance(user, User):
+      return user
+
+    result = schema.dump(user)
+
+    return resp_ok(
+      'Users', MSG_RESOURCE_FETCHED.format('Usuários'),  data=result.data
+    )
+
+  def put(self, user_id):
+    result = None
+    schema = UserSchema()
+    update_schema = UserUpdateSchema()
+    req_data = request.get_json() or None
+    email = None
+
+    if req_data is None:
+      return resp_data_invalid('Users', [], msg=MSG_NO_DATA)
+
+    user = get_user_by_id(user_id)
+
+    if not isinstance(user, User):
+      return user
+
+    data, errors = update_schema.load(req_data)
+
+    if errors:
+      return resp_data_invalid('Users', errors)
+
+    email = data.get('email', None)
+
+    if email and exists_email_in_users(email, user):
+      return resp_data_invalid(
+        'Users', [{'email': [MSG_ALREADY_EXISTS.format('usuário')]}]
+      )
+
+    try:
+      for i in data.keys():
+        user[i] = data[i]
+
+      user.save()
+
+    except NotUniqueError:
+      return resp_already_exists('Users', 'usuário')
+
+    except ValidationError as e:
+      return resp_exception('Users', msg=MSG_INVALID_DATA, description=e.__str__())
 
     except Exception as e:
       return resp_exception('Users', description=e.__str__())
@@ -76,5 +135,5 @@ class AdminUserResource(Resource):
     result = schema.dump(user)
 
     return resp_ok(
-      'Users', MSG_RESOURCE_FETCHED.format('Usuários'), data=result.data
+      'Users', MSG_RESOURCE_UPDATED.format('Usuário'),  data=result.data
     )
