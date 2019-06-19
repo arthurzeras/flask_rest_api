@@ -27,8 +27,8 @@ def configure_api(app):
   api.add_resource(SignUp, '/users')
 
   # rotas para os admins
-  api.add_resource(AdminUserPageList, '/admin/users/<int:page_id>')
-  api.add_resource(AdminUserResource, '/admin/user/<string:user_id>')
+  api.add_resource(AdminUserResource, '/admin/users/<string:user_id>')
+  api.add_resource(AdminUserPageList, '/admin/users/page/<int:page_id>')
 
   # inicializamos a api com as configurações do flask vinda por parâmetro
   api.init_app(app)
